@@ -1,0 +1,131 @@
+# values.yaml for URL Shortener Helm chart
+
+replicaCount:
+  backend: 2
+  frontend: 1
+  prometheus: 1
+  grafana: 1
+  alertmanager: 1
+
+image:
+  backend:
+    repository: heshammohammedelngar/url-shortener-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: heshammohammedelngar/url-shortener-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  prometheus:
+    repository: prom/prometheus
+    tag: latest
+    pullPolicy: IfNotPresent
+  grafana:
+    repository: grafana/grafana
+    tag: latest
+    pullPolicy: IfNotPresent
+  alertmanager:
+    repository: prom/alertmanager
+    tag: latest
+    pullPolicy: IfNotPresent
+
+service:
+  backend:
+    type: ClusterIP
+    port: 5000
+  frontend:
+    type: ClusterIP
+    port: 80
+  prometheus:
+    type: ClusterIP
+    port: 9090
+  grafana:
+    type: ClusterIP
+    port: 3000
+  alertmanager:
+    type: ClusterIP
+    port: 9093
+
+resources:
+  backend:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  frontend:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 150m
+      memory: 128Mi
+  prometheus:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  grafana:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 150m
+      memory: 128Mi
+  alertmanager:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+
+env:
+  FLASK_ENV: production
+
+persistence:
+  backend:
+    enabled: false
+  frontend:
+    enabled: false
+  prometheus:
+    enabled: true
+    size: 1Gi
+  grafana:
+    enabled: true
+    size: 1Gi
+  alertmanager:
+    enabled: true
+    size: 500Mi
+
+alertmanager:
+  slackApiUrl: "https://hooks.slack.com/services/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"
+  slackChannel: "#url-shortner"
+
+prometheus:
+  alertRules:
+    - name: HighErrorRate
+      expr: 'sum(rate(flask_http_request_total{status=~"5.."}[5m])) / sum(rate(flask_http_request_total[5m])) * 100 > 5'
+      severity: critical
+    - name: HighResponseTime
+      expr: 'histogram_quantile(0.95, rate(flask_http_request_duration_seconds_bucket[5m])) > 1'
+      severity: warning
+    - name: ServiceDown
+      expr: 'up{job="url-shortener"} == 0'
+      severity: critical
+    - name: NoURLCreations
+      expr: 'rate(url_shortener_creations_total[15m]) == 0'
+      severity: warning
+    - name: High404Rate
+      expr: 'rate(flask_http_request_total{status="404"}[5m]) > 0.1'
+      severity: warning
+    - name: DatabaseErrors
+      expr: 'rate(url_shortener_custom_errors_total{error_type=~"database|integrity"}[5m]) > 0.05'
+      severity: critical
+    - name: HighMemoryUsage
+      expr: 'process_resident_memory_bytes{job="url-shortener"} > 100000000'
+      severity: warning
+
