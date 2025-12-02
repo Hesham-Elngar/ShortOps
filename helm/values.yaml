@@ -1,7 +1,7 @@
 # values.yaml for URL Shortener Helm chart
 
 replicaCount:
-  backend: 2
+  backend: 1
   frontend: 1
   prometheus: 1
   grafana: 1
