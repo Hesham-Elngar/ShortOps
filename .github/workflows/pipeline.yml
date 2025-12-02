@@ -25,7 +25,6 @@ jobs:
       - name: Determine branch
         id: vars
         run: |
-          # Use input branch if workflow_dispatch, otherwise use github.ref
           BRANCH="${{ github.event.inputs.branch }}"
           if [ -z "$BRANCH" ]; then
             BRANCH="${GITHUB_REF#refs/heads/}"
@@ -48,17 +47,16 @@ jobs:
 
       - name: Run backend tests
         working-directory: backend
-        run: |
-          pytest || true   # tests won’t fail the workflow
+        run: pytest || true
 
       - name: Run flake8 lint
         working-directory: backend
         run: |
           pip install flake8
-          flake8 . || true   # lint warnings won’t fail the workflow
+          flake8 . || true
 
       - name: Print current branch
-        run: echo ${{ env.branch }} 
+        run: echo "Branch detected: ${{ env.branch }}" 
 
   deploy:
     runs-on: ubuntu-latest
@@ -73,18 +71,23 @@ jobs:
         run: |
           echo "Deploying branch: ${{ env.branch }}"
 
-          if [[ "${{ env.branch }}" == "dev/test" ]]; then
-            echo "✅ Dev/Test deploy: Validate docker-compose"
-            docker compose -f docker-compose.yml config
+          # List of branches allowed for deploy
+          deploy_branches=("dev/test" "staging" "prod")
 
-          elif [[ "${{ env.branch }}" == "staging" ]]; then
-            echo "✅ Staging deploy: Minikube + Kubernetes manifests"
-            # ... kubectl and minikube steps ...
+          # Check if branch is in deploy list
+          if [[ " ${deploy_branches[@]} " =~ " ${GITHUB_REF#refs/heads/} " ]]; then
+              if [[ "${{ env.branch }}" == "dev/test" ]]; then
+                  echo "✅ Dev/Test deploy: Validate docker-compose"
+                  docker compose -f docker-compose.yml config
 
-          elif [[ "${{ env.branch }}" == "prod" ]]; then
-            echo "✅ Production deploy: ArgoCD GitOps"
-            # ... ArgoCD steps ...
+              elif [[ "${{ env.branch }}" == "staging" ]]; then
+                  echo "✅ Staging deploy: Minikube + Kubernetes manifests"
+                  # ... kubectl and minikube steps ...
 
+              elif [[ "${{ env.branch }}" == "prod" ]]; then
+                  echo "✅ Production deploy: ArgoCD GitOps"
+                  # ... ArgoCD steps ...
+              fi
           else
-            echo "⚠️ Branch not configured for deploy. Skipping."
+              echo "⚠️ Branch not configured for deploy. Skipping."
           fi
