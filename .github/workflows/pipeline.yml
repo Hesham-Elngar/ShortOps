@@ -57,7 +57,7 @@ jobs:
           flake8 .
 
       - name: Print current branch
-        run: echo "Current branch: ${{ env.branch }}"
+        run: echo ${{ env.branch }} 
 
   deploy:
     runs-on: ubuntu-latest
