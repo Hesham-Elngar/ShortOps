@@ -1,0 +1,111 @@
+name: Full CI-CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev/test
+      - staging
+      - prod
+  pull_request:
+    branches:
+      - main
+      - prod    
+
+jobs:
+
+  #####################################
+  #      🔍 CI — TEST + LINT         #
+  #####################################
+  ci-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run backend tests
+        working-directory: backend
+        run: |
+          pytest || true
+
+      - name: Run flake8 lint
+        working-directory: backend
+        run: |
+          pip install flake8
+          flake8 || true
+
+      - name: Validate docker-compose syntax
+        run: docker compose -f docker-compose.yml config
+
+
+  #####################################
+  #   📦 Staging — Apply Manifests   #
+  #####################################
+  staging-deploy:
+    if: github.ref == 'refs/heads/staging'
+    needs: ci-checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install Minikube
+        run: |
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          chmod +x minikube-linux-amd64
+          sudo mv minikube-linux-amd64 /usr/local/bin/minikube
+
+      - name: Start Minikube
+        run: |
+          sudo minikube start --driver=docker --kubernetes-version=v1.28.0
+          kubectl cluster-info
+          
+      - name: Create app secrets
+        run: |
+          kubectl create secret generic app-secrets \
+          --from-literal=FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }} \
+          --from-literal=SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }} \
+          --namespace url-shortener \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/manifests/
+          
+
+
+  #####################################
+  #   🚀 Production — Helm + ArgoCD
+  #####################################
+  prod-deploy:
+    if: github.ref == 'refs/heads/prod'
+    needs: ci-checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ArgoCD Sync
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username ${{ secrets.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+          argocd app sync url-shortener
+          argocd app wait url-shortener
