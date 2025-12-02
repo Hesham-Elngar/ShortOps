@@ -19,31 +19,35 @@ spec:
         io.kompose.service: backend
     spec:
       containers:
-        - env:
+        - name: backend
+          image: {{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}
+
+          env:
             - name: FLASK_ENV
               value: {{ .Values.env.FLASK_ENV }}
+
           envFrom:
             - configMapRef:
                 name: env
-          image: {{ .Values.image.backend.repository }}:{{ .Values.image.backend.tag }}
-          livenessProbe:
-            exec:
-              command:
-                - curl
-                - -f
-                - http://localhost:5000/health
-            failureThreshold: 3
-            initialDelaySeconds: 40
-            periodSeconds: 30
-            timeoutSeconds: 10
-          name: backend
+
           ports:
             - containerPort: {{ .Values.service.backend.port }}
               protocol: TCP
+
+          livenessProbe:
+            exec:
+              command: ["curl", "-f", "http://localhost:5000/health"]
+            initialDelaySeconds: 40
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
           volumeMounts:
             - name: backend-data
               mountPath: /app/data
+
       restartPolicy: Always
+
       volumes:
         - name: backend-data
           persistentVolumeClaim:
