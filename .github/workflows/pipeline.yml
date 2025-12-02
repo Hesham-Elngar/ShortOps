@@ -44,9 +44,19 @@ jobs:
           pip install flake8
           flake8 || true
 
+  #####################################
+  # 🧪 Dev/Test — Validate Docker Compose #
+  #####################################
+  dev-deploy:
+    if: github.ref == 'refs/heads/dev/test'
+    runs-on: ubuntu-latest
+    needs: ci-checks
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Validate docker-compose syntax
         run: docker compose -f docker-compose.yml config
-
 
   #####################################
   #   📦 Staging — Apply Manifests   #
@@ -76,7 +86,11 @@ jobs:
         run: |
           sudo minikube start --driver=docker --kubernetes-version=v1.28.0
           kubectl cluster-info
-          
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace url-shortener --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create app secrets
         run: |
           kubectl create secret generic app-secrets \
@@ -88,8 +102,6 @@ jobs:
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f k8s/manifests/
-          
-
 
   #####################################
   #   🚀 Production — Helm + ArgoCD
@@ -100,6 +112,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: ArgoCD Sync
         run: |
           argocd login ${{ secrets.ARGOCD_SERVER }} \
