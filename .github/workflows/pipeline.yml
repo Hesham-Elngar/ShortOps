@@ -56,7 +56,7 @@ jobs:
           flake8 . || true
 
       - name: Print current branch
-        run: echo "Branch detected: ${{ env.branch }}" 
+        run: echo  ${{ env.branch }} 
 
   deploy:
     runs-on: ubuntu-latest
