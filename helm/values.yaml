@@ -9,11 +9,11 @@ replicaCount:
 
 image:
   backend:
-    repository: heshammohammedelngar/url-shortener-backend
+    repository: "488639172982.dkr.ecr.eu-west-1.amazonaws.com/url-shortener-backend"
     tag: latest
     pullPolicy: IfNotPresent
   frontend:
-    repository: heshammohammedelngar/url-shortener-frontend
+    repository: "488639172982.dkr.ecr.eu-west-1.amazonaws.com/url-shortener-frontend"
     tag: latest
     pullPolicy: IfNotPresent
   prometheus:
@@ -92,4 +92,3 @@ prometheus:
     - name: HighMemoryUsage
       expr: 'process_resident_memory_bytes{job="url-shortener"} > 100000000'
       severity: warning
-
