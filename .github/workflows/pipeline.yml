@@ -138,6 +138,7 @@ jobs:
             EOT            
             # aws ecr get-login-password --region eu-west-1 | docker login -u AWS --password-stdin 488639172982.dkr.ecr.eu-west-1.amazonaws.com
             docker-compose pull && docker-compose up -d
+            docker ps
             "
             
             rm -f key.pem
