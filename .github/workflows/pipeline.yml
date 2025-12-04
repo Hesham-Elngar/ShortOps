@@ -114,8 +114,8 @@ jobs:
 
       - name: Prepare deployment files
         run: |
-          echo "${{ secrets.DEV_DOT_ENV }}" > .env
-          echo "${{ secrets.DEV_DOCKER_COMPOSE }}" > docker-compose.yml
+          echo "${{ env.DOT_ENV }}" > .env
+          echo "${{ env.DOCKER_COMPOSE_YML }}" > docker-compose.yml
 
           echo "Generated docker-compose.yml:"
           cat docker-compose.yml
@@ -128,10 +128,10 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.DEV_EC2_HOST }} >> ~/.ssh/known_hosts
 
-          ssh -i /tmp/dev_key.pem ec2-user@${{ secrets.DEV_EC2_HOST }} << 'EOF'
+          ssh -i /tmp/key.pem ec2-user@${{ secrets.DEV_EC2_HOST }} << 'EOF'
 cd /home/ec2-user/url-shortener
-echo "${DEV_DOT_ENV}" > .env
-echo "${DEV_DOCKER_COMPOSE}" > docker-compose.yml
+echo "${env.DOT_ENV}" > .env
+echo "${env.DOCKER_COMPOSE_YML}" > docker-compose.yml
 cat .env docker-compose.yml
 docker-compose pull
 docker-compose up -d --remove-orphans
