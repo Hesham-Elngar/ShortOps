@@ -128,8 +128,8 @@ jobs:
       - name: SSH & Deploy
         run: |
 
-          echo "${{ env.DOT_ENV }}" > .env
-          echo "${{ env.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+          echo "$env.DOT_ENV > .env
+          echo "$env.DOCKER_COMPOSE_YML" > docker-compose.yml
 
           echo "${{ secrets.DEV_EC2_SSH_KEY }}" > key.pem
           chmod 600 key.pem
