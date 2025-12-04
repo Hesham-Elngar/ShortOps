@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Backend API Service
   backend:
-    image: heshammohammedelngar/url-shortener-backend:latest
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/url-shortener-backend:latest
     ports:
       - "5000:5000"
     environment:
@@ -24,7 +24,7 @@ services:
 
   # Frontend Service (Nginx)
   frontend:
-    image: heshammohammedelngar/url-shortener-frontend:latest
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/url-shortener-frontend:latest
     ports:
       - "80:80"
     depends_on:
