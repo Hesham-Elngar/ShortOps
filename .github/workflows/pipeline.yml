@@ -126,12 +126,19 @@ jobs:
           
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.DEV_EC2_HOST }} >> ~/.ssh/known_hosts
-
-          ssh -i key.pem ec2-user@${{ secrets.DEV_EC2_HOST }} "mkdir -p /home/ec2-user/url-shortener"
-          scp -i key.pem ${{ vars.DOT_ENV }} ${{ vars.DOCKER_COMPOSE_YML }} ec2-user@${{ secrets.DEV_EC2_HOST }}:/home/ec2-user/url-shortener/
       
-          ssh -i key.pem ec2-user@${{ secrets.DEV_EC2_HOST }} << EOF            
+          ssh -i key.pem ec2-user@${{ secrets.DEV_EC2_HOST }} << EOF   
+          mkdir -p 
           cd /home/ec2-user/url-shortener
+
+          cat > .env << EOT
+          ${{ vars.DOT_ENV }}
+          EOT
+          
+          cat > docker-compose.yml << EOT
+          ${{ vars.DOCKER_COMPOSE_YML }}
+          EOT
+          
           docker-compose pull
           docker-compose up -d --remove-orphans
           docker ps
