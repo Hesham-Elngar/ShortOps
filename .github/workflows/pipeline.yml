@@ -112,13 +112,16 @@ jobs:
         run: |
           echo "${{ secrets.DEV_EC2_SSH_KEY }}" > /tmp/dev_key.pem
           chmod 600 /tmp/dev_key.pem
+          
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DEV_EC2_HOST }} >> ~/.ssh/known_hosts
 
           ssh -i /tmp/dev_key.pem ec2-user@${{ secrets.DEV_EC2_HOST }} << 'EOF'
-          cd /home/ec2-user/url-shortener
-          echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
-          echo "${{ secrets.DOT_ENV }}" > .env
-          docker-compose pull
-          docker-compose up -d --remove-orphans
+            cd /home/ec2-user/url-shortener
+            echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+            echo "${{ secrets.DOT_ENV }}" > .env
+            docker-compose pull
+            docker-compose up -d --remove-orphans
           EOF
 
   ################################
