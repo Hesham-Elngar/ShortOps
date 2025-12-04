@@ -134,11 +134,11 @@ jobs:
           mkdir -p /home/ec2-user/url-shortener
           cd /home/ec2-user/url-shortener
           
-          cat > .env << EOT
+          cat > .env << 'EOT'
           ${{ env.DOT_ENV }}
           EOT
           
-          cat > docker-compose.yml << EOT
+          cat > docker-compose.yml << 'EOT'
           ${{ env.DOCKER_COMPOSE_YML }}
           EOT
           
