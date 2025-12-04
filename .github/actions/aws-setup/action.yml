@@ -1,0 +1,30 @@
+name: 'AWS OIDC & ECR Setup'
+description: 'Configure AWS credentials via OIDC and login to ECR'
+inputs:
+  aws-account-id:
+    description: 'AWS Account ID'
+    required: true
+  aws-region:
+    description: 'AWS Region'
+    required: true
+  ecr-login:
+    description: 'Whether to login to ECR'
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS via OIDC
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.aws-account-id }}:role/ecrAccessRole
+        aws-region: ${{ inputs.aws-region }}
+        role-session-name: GitHubActions-${{ github.run_id }}
+
+    - name: Login to Amazon ECR
+      if: inputs.ecr-login == 'true'
+      shell: bash
+      run: |
+        aws ecr get-login-password --region ${{ inputs.aws-region }} | \
+        docker login --username AWS --password-stdin ${{ inputs.aws-account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com

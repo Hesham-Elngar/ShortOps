@@ -1,0 +1,174 @@
+name: Full CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+      - prod
+  pull_request:
+    branches:
+      - main
+      - prod
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+jobs:
+
+  #################################################
+  # 1️⃣ Setup: generate tag, configure AWS, yq   #
+  #################################################
+  setup:
+    name: Setup environment
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.version.outputs.new_tag }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate Docker image tag
+        id: version
+        uses: ./.github/actions/generate-tag
+
+      - name: Configure AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecrAccessRole
+          aws-region: ${{ env.AWS_REGION }}
+    
+
+  ##################################
+  # 2️⃣ Backend-Containerization   #
+  ##################################
+  Backend-Containerization:
+    name: Backend-Containerization
+    runs-on: ubuntu-latest
+    needs: setup
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to ECR
+        uses: ./.github/actions/aws-setup
+        with:
+          aws-account-id: ${{ env.AWS_ACCOUNT_ID }}
+          aws-region: ${{ env.AWS_REGION }}
+          ecr-login: true
+      - name: Build and Push Backend
+        run: |
+          IMAGE=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/url-shortener-backend:${{ needs.setup.outputs.new_tag }}
+          docker build -t $IMAGE ./backend
+          docker tag $IMAGE ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/url-shortener-backend:latest
+          docker push $IMAGE
+          docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/url-shortener-backend:latest
+
+  ##################################
+  # 3️⃣  Frontend-Containerization  #
+  ##################################
+  Frontend-Containerization:
+    name: Frontend-Containerization
+    runs-on: ubuntu-latest
+    needs: setup
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to ECR
+        uses: ./.github/actions/aws-setup
+        with:
+          aws-account-id: ${{ env.AWS_ACCOUNT_ID }}
+          aws-region: ${{ env.AWS_REGION }}
+          ecr-login: true
+      - name: Build frontend Docker image
+        run: |
+          IMAGE=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/url-shortener-frontend:${{ needs.setup.outputs.new_tag }}
+          docker build -t $IMAGE ./frontend
+          docker tag $IMAGE ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/url-shortener-frontend:latest
+          docker push $IMAGE
+          docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/url-shortener-frontend:latest
+
+  ###############################
+  # 6️⃣ Deploy to Dev (EC2)      #
+  ###############################
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: [Frontend-Containerization, Backend-Containerization]
+    if: github.ref == 'refs/heads/dev'
+    steps:
+      - name: SSH & Deploy
+        run: |
+          ssh -i ${{ secrets.DEV_EC2_SSH_KEY }} ec2-user@${{ secrets.DEV_EC2_HOST }} << 'EOF'
+            cd /home/ec2-user/url-shortener
+            echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+            echo "${{ secrets.DOT_ENV }}" > .env
+            docker-compose pull
+            docker-compose up -d --remove-orphans
+          EOF
+
+  ################################
+  # 7️⃣ Deploy to Staging (EKS)  #
+  ################################
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [Frontend-Containerization, Backend-Containerization]
+    if: github.ref == 'refs/heads/staging'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+      - name: Create namespace
+        run: |
+          kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+      - name: Deploy Helm
+        run: |
+          helm upgrade --install url-shortener ./helm \
+            -f ./helm/values.yaml \
+            -n staging
+
+  ##################################
+  # 8️⃣  Deploy to Production       #
+  ##################################
+  deploy-prod:
+    name: Deploy to Production (ArgoCD)
+    runs-on: ubuntu-latest
+    needs: [Frontend-Containerization, Backend-Containerization]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    steps:
+      
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+
+      - name: test argocd cli
+        run: argocd version --client
+
+    # - name: ArgoCD Login
+    #   run: |
+    #     argocd login ${{ secrets.ARGOCD_SERVER }} \
+    #       --username ${{ secrets.ARGOCD_USERNAME }} \
+    #       --password ${{ secrets.ARGOCD_PASSWORD }} \
+    #       --insecure
+    #     argocd app sync url-shortener
+    #     argocd app wait url-shortener
+
+    # - name: Sync Application
+    #   run: |
+    #     argocd app sync url-shortener
+    #     argocd app wait url-shortener
+ 
