@@ -48,10 +48,8 @@ jobs:
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::$AWS_ACCOUNT_ID:role/ecrAccessRole
-          aws-region: $AWS_REGION
-          role-session-name: GitHubActions-${{ github.run_id }}
-          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecrAccessRole
+          aws-region: ${{ env.AWS_REGION }}
           
   ##################################
   # 2️⃣ Backend-Containerization   #
