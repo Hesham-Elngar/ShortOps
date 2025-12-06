@@ -210,9 +210,9 @@ jobs:
         run: |
           LATEST=$(curl -s https://api.github.com/repos/zegl/kube-score/releases/latest \
             | grep browser_download_url \
-            | grep "linux_amd64$" \
+            | grep "linux_amd64" \
+            | grep -v ".deb" \
             | cut -d '"' -f 4)
-  
             echo "Downloading: $LATEST"
             curl -L "$LATEST" -o kube-score
             chmod +x kube-score
