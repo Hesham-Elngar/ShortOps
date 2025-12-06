@@ -171,7 +171,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-  
+      - name: Configure AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecrAccessRole
+          aws-region: ${{ env.AWS_REGION }}
       # Configure AWS & login to ECR if needed
       - name: Login to ECR
         uses: ./.github/actions/aws-setup
