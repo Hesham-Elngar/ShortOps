@@ -270,6 +270,8 @@ jobs:
       # Deploy Helm chart
       - name: Deploy Helm
         run: |
+          kubectl delete storageclass gp2
+
           helm upgrade --install url-shortener ./helm \
             -f ./helm/values.yaml \
             -n staging
