@@ -49,18 +49,18 @@ env:
 
 persistence:
   backend:
-    enabled: true
+    enabled: false
     size: 500Mi   
   frontend:
     enabled: false
   prometheus:
-    enabled: true
+    enabled: false
     size: 500Mi
   grafana:
-    enabled: true
+    enabled: false
     size: 500Mi
   alertmanager:
-    enabled: true
+    enabled: false
     size: 250Mi
 
 resources:
