@@ -283,9 +283,6 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
     steps:
       - uses: actions/checkout@v4
-      - name: Setup kubectl
-        run: |
-          aws eks update-kubeconfig --name your-cluster-name --region eu-west-1
 
       - name: Install ArgoCD CLI v2 (NOT Core)
         run: |
