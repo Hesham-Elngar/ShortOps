@@ -283,24 +283,25 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
     steps:
       - uses: actions/checkout@v4
-  
-      - name: Install ArgoCD CLI
+      - name: Setup kubectl
         run: |
-          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          aws eks update-kubeconfig --name your-cluster-name --region eu-west-1
+
+      - name: Install ArgoCD CLI v2 (NOT Core)
+        run: |
+          # Download ArgoCD v2 CLI
+          VERSION="v2.9.4"  # Use latest v2 version
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
           argocd version --client
   
       - name: ArgoCD Sync
         run: |
-          # argocd login ${{ secrets.ARGOCD_SERVER }} \
-          #   --username ${{ secrets.ARGOCD_USERNAME }} \
-          #   --password ${{ secrets.ARGOCD_TOKEN }} \
-          #   --insecure
-          argocd login https://079f39abcc37.ngrok-free.app \
-            --username admin \
-            --password Hesham12345$ \
-            --insecure 
-            
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username ${{ secrets.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_TOKEN }} \
+            --insecure
 
           argocd app sync url-shortener
           argocd app wait url-shortener
