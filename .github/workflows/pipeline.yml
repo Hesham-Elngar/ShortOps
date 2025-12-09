@@ -293,13 +293,57 @@ jobs:
           sudo mv argocd /usr/local/bin/
           argocd version --client
   
-      - name: ArgoCD Sync
-        run: |
-          argocd login ${{ secrets.ARGOCD_SERVER }} \
-            --username ${{ secrets.ARGOCD_USERNAME }} \
-            --password ${{ secrets.ARGOCD_TOKEN }} \
-            --insecure
+      # - name: ArgoCD Sync
+      #   run: |
+      #     argocd login ${{ secrets.ARGOCD_SERVER }} \
+      #       --username ${{ secrets.ARGOCD_USERNAME }} \
+      #       --password ${{ secrets.ARGOCD_TOKEN }} \
+      #       --insecure
 
-          argocd app sync url-shortener
-          argocd app wait url-shortener
+      #     argocd app sync url-shortener
+      #     argocd app wait url-shortener
         
+      - name: Sync via ArgoCD API
+        env:
+          ARGOCD_URL: https://079f39abcc37.ngrok-free.app
+          ARGOCD_USERNAME: admin
+          ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
+        run: |
+          # Get JWT token
+          echo "Getting ArgoCD token..."
+          JWT_RESPONSE=$(curl -k -s -X POST $ARGOCD_URL/api/v1/session \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$ARGOCD_USERNAME\",\"password\":\"$ARGOCD_PASSWORD\"}")
+          
+          JWT_TOKEN=$(echo $JWT_RESPONSE | jq -r '.token')
+          
+          if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" = "null" ]; then
+            echo "Failed to get JWT token"
+            exit 1
+          fi
+          
+          # Sync application
+          echo "Syncing url-shortener..."
+          curl -k -X POST $ARGOCD_URL/api/v1/applications/url-shortener/sync \
+            -H "Authorization: Bearer $JWT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+          
+          # Wait for sync
+          echo "Waiting for sync..."
+          for i in {1..20}; do
+            sleep 10
+            STATUS=$(curl -k -s $ARGOCD_URL/api/v1/applications/url-shortener \
+              -H "Authorization: Bearer $JWT_TOKEN" \
+              | jq -r '.status.sync.status')
+            
+            echo "Status: $STATUS (attempt $i/20)"
+            
+            if [ "$STATUS" = "Synced" ]; then
+              echo "✅ Sync completed successfully"
+              exit 0
+            fi
+          done
+          
+          echo "❌ Sync timed out"
+          exit 1
